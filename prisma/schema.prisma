@@ -1,0 +1,144 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workouts      Workout[]
+  bodyMetrics   BodyMetric[]
+  progressPhotos ProgressPhoto[]
+  nutritionLogs NutritionLog[]
+  personalRecords PersonalRecord[]
+
+  // User preferences and settings
+  heightCm      Float?
+  targetWeight  Float?
+  programType   String    @default("nSuns531") // nSuns 4-day, 5-day, 6-day
+}
+
+model Exercise {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String   // "compound", "accessory", "cardio"
+  muscleGroup String   // "chest", "back", "legs", "shoulders", "arms", "core"
+  isMain      Boolean  @default(false) // Main lifts for nSuns (bench, squat, deadlift, OHP)
+
+  sets        Set[]
+  personalRecords PersonalRecord[]
+}
+
+model Workout {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  dayType     String   // "bench", "squat", "deadlift", "ohp" for nSuns
+  weekNumber  Int      // Week in the program
+  completed   Boolean  @default(false)
+  notes       String?
+
+  sets        Set[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
+}
+
+model Set {
+  id          String   @id @default(cuid())
+  workoutId   String
+  workout     Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+
+  setNumber   Int
+  reps        Int
+  weight      Float    // in kg or lbs
+  rpe         Float?   // Rate of Perceived Exertion (1-10)
+  isWarmup    Boolean  @default(false)
+  completed   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([workoutId])
+}
+
+model PersonalRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+
+  weight      Float    // Max weight lifted
+  reps        Int      // Reps at that weight
+  estimatedMax Float   // Estimated 1RM using formula
+  date        DateTime @default(now())
+
+  @@index([userId, exerciseId])
+}
+
+model BodyMetric {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  weight      Float    // in kg or lbs
+  bodyFatPct  Float?   // Body fat percentage
+  muscleMass  Float?   // Muscle mass in kg or lbs
+  waist       Float?   // Waist circumference in cm or inches
+  chest       Float?   // Chest circumference
+  arms        Float?   // Arm circumference
+  legs        Float?   // Leg circumference
+  notes       String?
+
+  @@index([userId, date])
+}
+
+model ProgressPhoto {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  photoUrl    String   // Path to uploaded photo
+  weight      Float?   // Weight at time of photo
+  notes       String?
+  angle       String?  // "front", "side", "back"
+
+  @@index([userId, date])
+}
+
+model NutritionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @default(now())
+  mealType    String   // "breakfast", "lunch", "dinner", "snack"
+  description String
+  calories    Float
+  protein     Float    // in grams
+  carbs       Float    // in grams
+  fats        Float    // in grams
+
+  @@index([userId, date])
+}
